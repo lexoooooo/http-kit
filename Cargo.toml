@@ -1,0 +1,25 @@
+[package]
+name = "http-kit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+http = "0.2.6"
+async-trait = "0.1.57"
+bytes = "1.1.0"
+bytestr = "0.1.0"
+anyhow = "1.0.62"
+futures-lite = "1.13.0"
+
+[dependencies.http-body]
+version="0.4.5"
+optional = true
+
+[dependencies.mime]
+version = "0.3.17"
+optional = true
+
+[features]
+default = []
+mime = ["dep:mime"]
+http_body = ["dep:http-body"]
