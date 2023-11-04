@@ -1,24 +1,21 @@
-//! Middleware allows you modify and read request or response.
-//! 
+//! Middleware allows you modify and read request or response during the request handling process.
+//!
 //! # Example
 //! ```rust
 //! // An implement of timeout middleware
 //! use async_std::future::timeout;
 //! use std::time::Duration;
 //! use async_trait::async_trait;
-//! use http_util::{Request,middleware::{Middleware,Next}};
-
+//! use http_kit::{Request,Response,middleware::{Middleware,Next}};
 //! struct TimeOut(Duration);
-//! 
+//!
 //! #[async_trait]
 //! impl Middleware for TimeOut{
-//!     async fn call_middleware(&self, request: &mut Request, next: Next<'_>) -> Result<Response>{
+//!     async fn call_middleware(&self, request: &mut Request, next: Next<'_>) -> http_kit::Result<Response>{
 //!         timeout(self.duration,next.run(request)).await?
 //!     }
 //! }
 //! ```
-
-
 
 use std::{fmt::Debug, ops::Deref, pin::Pin, sync::Arc};
 
@@ -26,7 +23,7 @@ use crate::{Endpoint, Request, Response, Result};
 use async_trait::async_trait;
 use std::future::Future;
 
-/// The remain part of the handling chain,inclduing endpoint.
+/// Represents the remaining part of the request handling chain, including the endpoint.
 #[allow(missing_debug_implementations)]
 pub struct Next<'a> {
     remain_middlewares: &'a [SharedMiddleware],
@@ -56,14 +53,14 @@ impl<'a> Next<'a> {
     }
 }
 
-/// Middleware can read and modify the request or response.
-/// It is always used to implement timeout,compression,etc.
+/// Middleware allows reading and modifying requests or responses during the request handling process.
+/// It is often used to implement functionalities such as timeouts, compression, etc.
 #[async_trait]
 pub trait Middleware: Send + Sync {
     /// Handle this request and return a response.Call `next` method of `Next` to handle remain middleware chain.
     async fn call_middleware(&self, request: &mut Request, next: Next<'_>) -> Result<Response>;
 
-    /// Accquire the name of the middleware.
+    /// Get the name of the middleware
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }

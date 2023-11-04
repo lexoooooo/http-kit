@@ -13,7 +13,7 @@ pub struct Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl Error {
-    /// Create a `Error` object from any error type with the status code.
+    /// Create an `Error` object from any error type with the given status code.
     pub fn new<E, S>(error: E, status: S) -> Self
     where
         E: Into<anyhow::Error>,
@@ -83,7 +83,7 @@ impl Error {
         self.error.downcast_mut()
     }
 
-    /// Throw the status code and return inner error type.
+    /// Discard the status code and return the inner error type.
     pub fn into_inner(self) -> Box<dyn StdError + Send + Sync + 'static> {
         self.error.into()
     }
@@ -139,7 +139,7 @@ impl DerefMut for Error {
     }
 }
 
-/// Provide `status` method for `Result`.
+/// Provide `status` method for `Result` and `Option`.
 pub trait ResultExt<T>
 where
     Self: Sized,
@@ -149,12 +149,11 @@ where
     /// ```
     /// use std::fs::File;
     /// use std::io::prelude::*;
-    /// use http_util::{Body,Result,ResultExt};
+    /// use http_kit::{Body,ResultExt};
     /// use async_fs::File;
-    /// fn handler() -> Result<Body>{
+    /// fn handler() -> http_kit::Result<Body>{
     ///     Ok(Body::from_reader(File::open("index.html").await.status(404)?))
     /// }
-
     /// ```
     fn status<S>(self, status: S) -> Result<T>
     where

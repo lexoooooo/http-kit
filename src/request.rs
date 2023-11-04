@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 type RequestParts = http::request::Parts;
 
-/// A HTTP request.
+/// An HTTP request.
 #[derive(Debug)]
 pub struct Request {
     parts: RequestParts,
@@ -100,11 +100,11 @@ impl Request {
         *self.method_mut() = method;
     }
 
-    /// Return the reference of request uri.
+    /// Return the reference of request URI.
     pub const fn uri(&self) -> &Uri {
         &self.parts.uri
     }
-    /// Return the mutable reference of uri method.
+    /// Return the mutable reference of URI method.
 
     pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.parts.uri

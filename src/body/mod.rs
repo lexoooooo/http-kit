@@ -73,7 +73,9 @@ impl Body {
         }
     }
 
-    /// Create a body from a bufreader object.
+    /// Create a body from a object implement `AsyncBufRead`.
+    /// This method allows you to create a object implement `AsyncBufRead`, which is useful for reading data
+    /// from a file or any other source that implements the `AsyncBufRead` trait.
     /// #Example
     /// ```rust
     /// use async_std::fs::File;
@@ -124,7 +126,7 @@ impl Body {
         }
     }
 
-    /// Try to read the body and return a `Bytes`.
+    /// Try to read the body and return a `Bytes` object.
     pub async fn into_bytes(self) -> Result<Bytes, Error> {
         match self.inner {
             BodyInner::Once(bytes) => Ok(bytes),
@@ -175,7 +177,7 @@ impl Body {
         IntoAsyncRead::new(self)
     }
 
-    /// Preparing a chunk of bytes in inner, then return a reference of bytes.
+    /// Prepare a chunk of bytes in the inner representation, then return a reference to the bytes.
     pub async fn as_bytes(&mut self) -> Result<&[u8], Error> {
         self.inner = BodyInner::Once(self.take()?.into_bytes().await?);
         match self.inner {

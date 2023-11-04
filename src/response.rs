@@ -40,7 +40,7 @@ impl Response {
         response
     }
 
-    /// Create a empty `Response`
+    /// Create a empty `Response`.
     pub fn empty() -> Self {
         Self::new(StatusCode::OK, Body::empty())
     }
@@ -88,7 +88,7 @@ impl Response {
     pub fn get_header(&self, name: HeaderName) -> Option<&HeaderValue> {
         self.headers().get(name)
     }
-    /// Append a header,the previous header (if exists) would'nt be removed.
+    /// Append a header,the previous header (if exists) wouldn't be removed.
 
     pub fn append_header(&mut self, name: HeaderName, value: HeaderValue) {
         self.headers_mut().append(name, value);
@@ -140,7 +140,7 @@ impl Response {
         self.body.replace(body.into())
     }
 
-    /// Swap the value of the response body with another body if the orginal body is not frozen.
+    /// Swap the value of the response body with another body if the original body is not frozen.
     pub fn swap_body(&mut self, body: &mut Body) -> Result<(), BodyFrozen> {
         self.body.swap(body)
     }
