@@ -8,7 +8,7 @@ use crate::{Request, Response, Result};
 #[async_trait]
 pub trait Endpoint: Send + Sync {
     /// The endpoint handles request and return a response.
-    async fn call_endpoint(&self, request: &mut Request) -> Result<Response>;
+    async fn call_endpoint(&self, request: Request) -> Result<Response>;
 }
 
 impl_endpoint![

@@ -2,15 +2,14 @@ macro_rules! impl_middleware {
     ($($ty:ty),*) => {
         $(
             impl Middleware for $ty {
-                fn call_middleware<'life0, 'life1, 'life2, 'async_trait>(
+                fn call_middleware<'life0, 'life1, 'async_trait>(
                     &'life0 self,
-                    request: &'life1 mut Request,
-                    next: Next<'life2>,
+                    request:Request,
+                    next: Next<'life1>,
                 ) -> Pin<Box<dyn Future<Output = crate::Result<Response>>+Send+ 'async_trait>,>
                 where
                     'life0: 'async_trait,
                     'life1: 'async_trait,
-                    'life2: 'async_trait,
 
                     Self: 'async_trait
                 {
@@ -30,13 +29,12 @@ macro_rules! impl_endpoint {
     ($($ty:ty),*) => {
         $(
             impl Endpoint for $ty {
-                fn call_endpoint<'life0, 'life1, 'async_trait>(
+                fn call_endpoint<'life0, 'async_trait>(
                     &'life0 self,
-                    request: &'life1 mut Request,
+                    request: Request,
                 ) -> Pin<Box<dyn Future<Output = crate::Result<Response>>+ Send+ 'async_trait>>
                 where
                     'life0: 'async_trait,
-                    'life1: 'async_trait,
                     Self: 'async_trait
                 {
                     self.deref().call_endpoint(request)
