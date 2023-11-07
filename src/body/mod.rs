@@ -16,12 +16,11 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 type BoxStdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-/// A boxed steam object.
-pub type BoxStream =
-    Pin<Box<dyn Stream<Item = Result<Bytes, BoxStdError>> + Send + Sync + 'static>>;
+// A boxed steam object.
+type BoxStream = Pin<Box<dyn Stream<Item = Result<Bytes, BoxStdError>> + Send + Sync + 'static>>;
 
-/// A boxed bufreader object.
-pub type BoxBufReader = Pin<Box<dyn AsyncBufRead + Send + Sync + 'static>>;
+// A boxed bufreader object.
+type BoxBufReader = Pin<Box<dyn AsyncBufRead + Send + Sync + 'static>>;
 
 #[cfg(feature = "http_body")]
 pub use http_body::Body as HttpBody;
