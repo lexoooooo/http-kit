@@ -11,6 +11,18 @@ bytestr = "0.1.0"
 anyhow = "1.0.62"
 futures-lite = "1.13.0"
 
+[dependencies.serde_json]
+version = "1.0.108"
+optional = true
+
+[dependencies.serde_urlencoded]
+version = "0.7.1"
+optional = true
+
+[dependencies.serde]
+version = "1.0.192"
+optional = true
+
 [dependencies.http-body]
 version="0.4.5"
 optional = true
@@ -23,3 +35,5 @@ optional = true
 default = []
 mime = ["dep:mime"]
 http_body = ["dep:http-body"]
+json = ["dep:serde","dep:serde_json"]
+form = ["dep:serde","dep:serde_urlencoded"]

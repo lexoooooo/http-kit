@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::io;
 use std::str::Utf8Error;
 
-/// Error which can ocuur when attempting to
+/// Error type around `Body`.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -14,52 +14,68 @@ pub enum Error {
     Utf8(Utf8Error),
     /// The body has been consumed and can not provide data anymore.It is distinguished from a normal empty body.
     BodyFrozen,
-
+    #[cfg(feature = "json")]
+    /// Fail to serialize/deserialize object to JSON.
+    JsonError(serde_json::Error),
+    #[cfg(feature = "form")]
+    /// Fail to serialize object to a form.
+    SerializeForm(serde_urlencoded::ser::Error),
+    #[cfg(feature = "form")]
+    /// Fail to deserialize a form to object.
+    DeserializeForm(serde_urlencoded::de::Error),
     /// Other inner error.
     Other(BoxStdError),
 }
 
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Self::Io(error)
-    }
+macro_rules! impl_body_error {
+    ($(($field:tt,$ty:ty $(,$feature:tt)?)),*) => {
+        $(
+            $(#[cfg(feature = $feature)])*
+            impl From<$ty> for Error {
+                fn from(error: $ty) -> Self {
+                    Self::$field(error)
+                }
+            }
+        )*
+
+        impl Display for Error {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                        $(#[cfg(feature = $feature)])*
+                        Self::$field(error) => error.fmt(f),
+                    )*
+                    Self::BodyFrozen => BodyFrozen::new().fmt(f),
+                }
+            }
+        }
+
+        impl StdError for Error {
+            fn source(&self) -> Option<&(dyn StdError + 'static)> {
+                match self {
+                    $(
+                        $(#[cfg(feature = $feature)])*
+                        Self::$field(error) => error.source(),
+                    )*
+                    Error::BodyFrozen => None,
+                }
+            }
+        }
+
+    };
 }
 
-impl From<Utf8Error> for Error {
-    fn from(error: Utf8Error) -> Self {
-        Self::Utf8(error)
-    }
-}
-
-impl From<BoxStdError> for Error {
-    fn from(error: BoxStdError) -> Self {
-        Self::Other(error)
-    }
-}
+impl_body_error![
+    (Io, io::Error),
+    (Utf8, Utf8Error),
+    (Other, BoxStdError),
+    (JsonError, serde_json::Error, "json"),
+    (SerializeForm, serde_urlencoded::ser::Error, "form"),
+    (DeserializeForm, serde_urlencoded::de::Error, "form")
+];
 
 impl From<BodyFrozen> for Error {
     fn from(_error: BodyFrozen) -> Self {
         Self::BodyFrozen
-    }
-}
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(error) => error.fmt(f),
-            Self::Utf8(error) => error.fmt(f),
-            Self::Other(error) => error.fmt(f),
-            Self::BodyFrozen => BodyFrozen::new().fmt(f),
-        }
-    }
-}
-
-impl StdError for Error {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match self {
-            Error::Io(error) => error.source(),
-            Error::Utf8(error) => error.source(),
-            Error::BodyFrozen => None,
-            Error::Other(error) => error.source(),
-        }
     }
 }

@@ -110,6 +110,18 @@ impl Body {
         }
     }
 
+    /// Create a body by serializing a object into JSON.
+    #[cfg(feature = "json")]
+    pub fn from_json<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
+        Ok(Self::from_bytes(serde_json::to_string(value)?))
+    }
+
+    /// Create a body by serializing a object into form.
+    #[cfg(feature = "form")]
+    pub fn from_form<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
+        Ok(Self::from_bytes(serde_urlencoded::to_string(value)?))
+    }
+
     /// Create a body from a chunk of bytes.
     pub fn from_bytes(data: impl Into<Bytes>) -> Self {
         Self {
@@ -170,6 +182,22 @@ impl Body {
     /// Try to read the body as a UTF-8 string and return a `ByteStr`.
     pub async fn into_string(self) -> Result<ByteStr, Error> {
         Ok(ByteStr::from_utf8(self.into_bytes().await?)?)
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as JSON.
+    /// This method allows you to deserialize data with zero copy.
+    #[cfg(feature = "json")]
+    pub async fn into_json<'a, T: serde::Deserialize<'a>>(&'a mut self) -> Result<T, Error> {
+        let data = self.as_bytes().await?;
+        Ok(serde_json::from_slice(data)?)
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as a form.
+    /// This method allows you to deserialize data with zero copy.
+    #[cfg(feature = "form")]
+    pub async fn into_form<'a, T: serde::Deserialize<'a>>(&'a mut self) -> Result<T, Error> {
+        let data = self.as_bytes().await?;
+        Ok(serde_urlencoded::from_bytes(data)?)
     }
 
     /// Return a wrapper which implement `AsyncBufRead`.
