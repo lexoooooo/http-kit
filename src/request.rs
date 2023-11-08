@@ -1,4 +1,6 @@
-use crate::{body::BodyFrozen, Body};
+use crate::{body::BodyFrozen, Body, BodyError};
+use bytes::Bytes;
+use bytestr::ByteStr;
 use http::{header::HeaderName, Extensions, HeaderMap, HeaderValue, Method, Uri, Version};
 use std::fmt::Debug;
 
@@ -74,7 +76,7 @@ impl Request {
     {
         Self::new(Method::DELETE, uri)
     }
-    /// Return the reference of reqeust parts.
+    /// Return the reference of request parts.
     pub const fn parts(&self) -> &RequestParts {
         &self.parts
     }
@@ -104,7 +106,7 @@ impl Request {
     pub const fn uri(&self) -> &Uri {
         &self.parts.uri
     }
-    /// Return the mutable reference of URI method.
+    /// Return the mutable reference of URI.
 
     pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.parts.uri
@@ -118,15 +120,25 @@ impl Request {
     pub const fn version(&self) -> Version {
         self.parts.version
     }
-    /// Return the mutable reference of HTTP version.
+    /// Return the mutable reference of the HTTP version.
 
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.parts.version
     }
-    /// Set the HTTP version by `version`
+    /// Set the HTTP version by `version`.
 
     pub fn set_version(&mut self, version: Version) {
         *self.version_mut() = version;
+    }
+
+    /// Set HTTP header.
+    pub fn header<V>(mut self, name: HeaderName, value: V) -> Self
+    where
+        V: TryInto<HeaderValue>,
+        V::Error: Debug,
+    {
+        self.insert_header(name, value.try_into().unwrap());
+        self
     }
 
     /// Return the reference of the HTTP header.
@@ -145,7 +157,7 @@ impl Request {
         self.headers().get(name)
     }
 
-    /// Append a header,the previous header (if exists) would'nt be removed.
+    /// Append a header,the previous header (if it exists) wouldn't be removed.
     pub fn append_header(&mut self, name: HeaderName, value: HeaderValue) {
         self.headers_mut().append(name, value);
     }
@@ -211,6 +223,66 @@ impl Request {
         self
     }
 
+    #[cfg(feature = "json")]
+    /// Set the body from a JSON.
+    /// This method will set `Content-type` header automatically.
+    pub fn json<T: serde::Serialize>(mut self, value: &T) -> Result<Self, serde_json::Error> {
+        use http::header;
+
+        self.insert_header(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        self.replace_body(serde_json::to_vec(value)?);
+        Ok(self)
+    }
+
+    #[cfg(feature = "form")]
+    /// Set the body from a form.
+    /// This method will set `Content-type` header automatically.
+    pub fn form<T: serde::Serialize>(
+        mut self,
+        value: &T,
+    ) -> Result<Self, serde_urlencoded::ser::Error> {
+        use http::header;
+
+        self.insert_header(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/x-www-form-urlencoded"),
+        );
+        self.replace_body(serde_urlencoded::to_string(value)?);
+        Ok(self)
+    }
+
+    /// Consume and read request body as a chunk of bytes.
+    pub async fn into_bytes(&mut self) -> Result<Bytes, BodyError> {
+        self.take_body()?.into_bytes().await
+    }
+
+    /// Consume and read request body as UTF-8 string.
+    pub async fn into_string(&mut self) -> Result<ByteStr, BodyError> {
+        self.take_body()?.into_string().await
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as JSON.
+    /// This method allows you to deserialize data with zero copy.
+    #[cfg(feature = "json")]
+    pub async fn into_json<'a, T>(&'a mut self) -> Result<T, BodyError>
+    where
+        T: serde::Deserialize<'a>,
+    {
+        Ok(serde_json::from_slice(self.body.as_bytes().await?)?)
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as a form.
+    /// This method allows you to deserialize data with zero copy.
+    #[cfg(feature = "form")]
+    pub async fn into_form<'a, T>(&'a mut self) -> Result<T, BodyError>
+    where
+        T: serde::Deserialize<'a>,
+    {
+        Ok(serde_urlencoded::from_bytes(self.body.as_bytes().await?)?)
+    }
     /// Set the MIME.
     #[cfg(feature = "mime")]
     pub fn set_mime(&mut self, mime: mime::Mime) {

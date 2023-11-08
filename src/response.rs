@@ -4,7 +4,7 @@ use bytes::Bytes;
 use bytestr::ByteStr;
 use http::{header::HeaderName, Extensions, HeaderMap, HeaderValue, StatusCode, Version};
 
-use crate::{body::BodyFrozen, Body};
+use crate::{body::BodyFrozen, Body, BodyError};
 
 /// The HTTP response parts.
 pub type ResponseParts = http::response::Parts;
@@ -167,5 +167,66 @@ impl Response {
     {
         self.body = f(self.body);
         self
+    }
+
+    /// Set the body from a JSON.
+    /// This method will set `Content-type` header automatically.
+    #[cfg(feature = "json")]
+    pub fn json<T: serde::Serialize>(mut self, value: &T) -> Result<Self, serde_json::Error> {
+        use http::header;
+
+        self.insert_header(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        self.replace_body(serde_json::to_vec(value)?);
+        Ok(self)
+    }
+
+    /// Set the body from a form.
+    /// This method will set `Content-type` header automatically.
+    #[cfg(feature = "form")]
+    pub fn form<T: serde::Serialize>(
+        mut self,
+        value: &T,
+    ) -> Result<Self, serde_urlencoded::ser::Error> {
+        use http::header;
+
+        self.insert_header(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/x-www-form-urlencoded"),
+        );
+        self.replace_body(serde_urlencoded::to_string(value)?);
+        Ok(self)
+    }
+
+    /// Consume and read response body as a chunk of bytes.
+    pub async fn into_bytes(&mut self) -> Result<Bytes, BodyError> {
+        self.take_body()?.into_bytes().await
+    }
+
+    /// Consume and read response body as UTF-8 string.
+    pub async fn into_string(&mut self) -> Result<ByteStr, BodyError> {
+        self.take_body()?.into_string().await
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as JSON.
+    /// This method allows you to deserialize data with zero copy.
+    #[cfg(feature = "json")]
+    pub async fn into_json<'a, T>(&'a mut self) -> Result<T, BodyError>
+    where
+        T: serde::Deserialize<'a>,
+    {
+        Ok(serde_json::from_slice(self.body.as_bytes().await?)?)
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as a form.
+    /// This method allows you to deserialize data with zero copy.
+    #[cfg(feature = "form")]
+    pub async fn into_form<'a, T>(&'a mut self) -> Result<T, BodyError>
+    where
+        T: serde::Deserialize<'a>,
+    {
+        Ok(serde_urlencoded::from_bytes(self.body.as_bytes().await?)?)
     }
 }
