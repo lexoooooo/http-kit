@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use bytes::Bytes;
+use bytestr::ByteStr;
 use http::{header::HeaderName, Extensions, HeaderMap, HeaderValue, StatusCode, Version};
 
 use crate::{body::BodyFrozen, Body};
@@ -27,9 +29,22 @@ impl From<Response> for http::Response<Body> {
     }
 }
 
+macro_rules! impl_response_from {
+    ($($ty:ty),*) => {
+        $(
+            impl From<$ty> for Response {
+                fn from(value: $ty) -> Self {
+                    Self::new(StatusCode::OK, value)
+                }
+            }
+        )*
+    };
+}
+
+impl_response_from![ByteStr, String, Vec<u8>, Bytes];
+
 impl Response {
     /// Create a new `Response` with a body.
-
     pub fn new<S>(status: S, body: impl Into<Body>) -> Self
     where
         S: TryInto<StatusCode>,

@@ -18,6 +18,12 @@ impl From<Vec<u8>> for Body {
     }
 }
 
+impl From<Box<[u8]>> for Body {
+    fn from(data: Box<[u8]>) -> Self {
+        Body::from_bytes(data)
+    }
+}
+
 impl<'a> From<Cow<'a, [u8]>> for Body {
     fn from(data: Cow<[u8]>) -> Self {
         Body::from_bytes(data.into_owned())
@@ -39,6 +45,12 @@ impl From<ByteStr> for Body {
 impl From<String> for Body {
     fn from(data: String) -> Self {
         data.into_bytes().into()
+    }
+}
+
+impl From<Box<str>> for Body {
+    fn from(data: Box<str>) -> Self {
+        Body::from_bytes(ByteStr::from(data))
     }
 }
 
