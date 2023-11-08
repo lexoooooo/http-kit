@@ -114,6 +114,16 @@ impl Response {
         self.headers_mut().insert(name, value)
     }
 
+    /// Set HTTP header.
+    pub fn header<V>(mut self, name: HeaderName, value: V) -> Self
+    where
+        V: TryInto<HeaderValue>,
+        V::Error: Debug,
+    {
+        self.insert_header(name, value.try_into().unwrap());
+        self
+    }
+
     /// Return the reference of the extension.
 
     pub const fn extensions(&self) -> &Extensions {
