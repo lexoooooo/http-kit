@@ -41,7 +41,7 @@ macro_rules! impl_response_from {
     };
 }
 
-impl_response_from![ByteStr, String, Vec<u8>, Bytes];
+impl_response_from![ByteStr, String, Vec<u8>, Bytes, &str, &[u8]];
 
 impl Response {
     /// Create a new `Response` with a body.
