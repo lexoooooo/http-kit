@@ -285,16 +285,17 @@ impl Request {
     }
     /// Set the MIME.
     #[cfg(feature = "mime")]
-    pub fn set_mime(&mut self, mime: mime::Mime) {
+    pub fn mime(mut self, mime: mime::Mime) -> Self {
         self.insert_header(
             http::header::CONTENT_TYPE,
             http::HeaderValue::from_str(mime.as_ref()).unwrap(),
         );
+        self
     }
 
     /// Try to parse the header and return a `Mime` instance.
     #[cfg(feature = "mime")]
-    pub fn mime(&self) -> Option<mime::Mime> {
+    pub fn get_mime(&self) -> Option<mime::Mime> {
         Some(
             std::str::from_utf8(self.get_header(http::header::CONTENT_TYPE)?.as_bytes())
                 .ok()?
