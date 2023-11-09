@@ -29,9 +29,6 @@ pub mod middleware;
 #[doc(inline)]
 pub use middleware::Middleware;
 
-mod endpoint;
-pub use endpoint::Endpoint;
-
 mod hook;
 pub use hook::Hook;
 

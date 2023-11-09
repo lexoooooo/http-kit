@@ -17,39 +17,40 @@
 //! }
 //! ```
 
-use std::{fmt::Debug, ops::Deref, pin::Pin, sync::Arc};
-
-use crate::{Endpoint, Request, Response, Result};
+use crate::{Request, Response, Result};
 use async_trait::async_trait;
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
-/// Represents the remaining part of the request handling chain, including the endpoint.
-#[allow(missing_debug_implementations)]
-pub struct Next<'a> {
-    remain_middlewares: &'a [SharedMiddleware],
-    endpoint: &'a (dyn Endpoint + Send + Sync),
+// Recursive expansion of async_trait macro
+// =========================================
+
+impl<T: Middleware> Middleware for &T {
+    fn call_middleware<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        request: &'life1 mut Request,
+        next: impl 'async_trait + Middleware,
+    ) -> Pin<Box<dyn Future<Output = Result<Response>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        (*self).call_middleware(request, next)
+    }
 }
 
-impl<'a> Next<'a> {
-    /// Create a `Next` instance with a complete handling chain.
-    pub fn new(
-        middlewares: &'a [SharedMiddleware],
-        endpoint: &'a (dyn Endpoint + Send + Sync),
-    ) -> Self {
-        Self {
-            remain_middlewares: middlewares,
-            endpoint,
-        }
-    }
-
-    /// Execute the remain part of the handling chain.
-    pub async fn run(mut self, request: &mut Request) -> Result<Response> {
-        if let Some((middleware, remain)) = self.remain_middlewares.split_first() {
-            self.remain_middlewares = remain;
-            middleware.call_middleware(request, self).await
-        } else {
-            self.endpoint.call_endpoint(request).await
-        }
+impl<T1: Middleware, T2: Middleware> Middleware for (T1, T2) {
+    fn call_middleware<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        request: &'life1 mut Request,
+        _next: impl 'async_trait + Middleware,
+    ) -> Pin<Box<dyn Future<Output = Result<Response>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        self.0.call_middleware(request, &self.1)
     }
 }
 
@@ -58,27 +59,9 @@ impl<'a> Next<'a> {
 #[async_trait]
 pub trait Middleware: Send + Sync {
     /// Handle this request and return a response.Call `next` method of `Next` to handle remain middleware chain.
-    async fn call_middleware(&self, request: &mut Request, next: Next<'_>) -> Result<Response>;
-
-    /// Get the name of the middleware
-    fn name(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
+    async fn call_middleware(
+        &self,
+        request: &mut Request,
+        next: impl Middleware,
+    ) -> Result<Response>;
 }
-
-impl Debug for (dyn Middleware) {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name())
-    }
-}
-
-impl Debug for (dyn Middleware + Send + Sync) {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name())
-    }
-}
-
-type BoxMiddleware = Pin<Box<dyn Middleware + Send + Sync + 'static>>;
-type SharedMiddleware = Pin<Arc<dyn Middleware + Send + Sync + 'static>>;
-
-impl_middleware![BoxMiddleware, SharedMiddleware];
