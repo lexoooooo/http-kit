@@ -37,5 +37,4 @@ pub use request::Request;
 mod response;
 pub use response::Response;
 
-pub use http::header;
-pub use http::{Method, StatusCode, Uri, Version};
+pub use http::{header, method, uri, version, Extensions, Method, StatusCode, Uri, Version};
