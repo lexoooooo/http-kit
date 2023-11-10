@@ -28,7 +28,7 @@ impl<T: Middleware> Middleware for &T {
     fn call_middleware<'life0, 'life1, 'async_trait>(
         &'life0 self,
         request: &'life1 mut Request,
-        next: impl 'async_trait + Middleware,
+        next: Next<impl 'async_trait + Middleware>,
     ) -> Pin<Box<dyn Future<Output = Result<Response>> + Send + 'async_trait>>
     where
         'life0: 'async_trait,
@@ -43,14 +43,14 @@ impl<T1: Middleware, T2: Middleware> Middleware for (T1, T2) {
     fn call_middleware<'life0, 'life1, 'async_trait>(
         &'life0 self,
         request: &'life1 mut Request,
-        _next: impl 'async_trait + Middleware,
+        _next: Next<impl 'async_trait + Middleware>,
     ) -> Pin<Box<dyn Future<Output = Result<Response>> + Send + 'async_trait>>
     where
         'life0: 'async_trait,
         'life1: 'async_trait,
         Self: 'async_trait,
     {
-        self.0.call_middleware(request, &self.1)
+        self.0.call_middleware(request, Next::new(&self.1))
     }
 }
 
@@ -62,6 +62,33 @@ pub trait Middleware: Send + Sync {
     async fn call_middleware(
         &self,
         request: &mut Request,
-        next: impl Middleware,
+        next: Next<impl Middleware>,
     ) -> Result<Response>;
+}
+
+/// Represents the remaining part of the request handling chain.
+#[derive(Debug)]
+pub struct Next<T>(T);
+
+impl<T: Middleware> Next<T> {
+    /// Create a new `Next` instance ( normally having a complete handling chain).
+    pub fn new(middlewares: T) -> Self {
+        Self(middlewares)
+    }
+
+    /// Execute the remain part of the handling chain.
+    pub async fn run(&self, request: &mut Request) -> Result<Response> {
+        self.0.call_middleware(request, Next::new(())).await
+    }
+}
+
+#[async_trait]
+impl Middleware for () {
+    async fn call_middleware(
+        &self,
+        _request: &mut Request,
+        _next: Next<impl Middleware>,
+    ) -> Result<Response> {
+        Ok(Response::empty())
+    }
 }
