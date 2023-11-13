@@ -25,7 +25,7 @@ mod body;
 pub use body::Body;
 pub use body::Error as BodyError;
 
-mod middleware;
+pub mod middleware;
 pub use middleware::Middleware;
 
 mod endpoint;
