@@ -1,4 +1,4 @@
-use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
+use std::{any::type_name, fmt::Debug, future::Future, ops::Deref, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 
@@ -9,6 +9,10 @@ use crate::{Request, Response, Result};
 pub trait Endpoint: Send + Sync {
     /// The endpoint handles request and return a response.
     async fn call_endpoint(&self, request: &mut Request) -> Result<Response>;
+    /// Get the name of the middleware, which will default to the type name of this middleware.
+    fn name(&self) -> &'static str {
+        type_name::<Self>()
+    }
 }
 
 type SharedEndpoint = Box<dyn Endpoint>;
@@ -29,6 +33,10 @@ macro_rules! impl_endpoint {
                 {
                     self.deref().call_endpoint(request)
                 }
+
+                fn name(&self) -> &'static str{
+                    self.deref().name()
+                }
             }
         )*
     };
@@ -40,5 +48,11 @@ impl_endpoint![SharedEndpoint, BoxEndpoint];
 impl Endpoint for () {
     async fn call_endpoint(&self, _request: &mut Request) -> Result<Response> {
         Ok(Response::empty())
+    }
+}
+
+impl Debug for dyn Endpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
     }
 }

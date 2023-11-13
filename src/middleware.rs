@@ -19,7 +19,7 @@
 
 use crate::{Endpoint, Request, Response, Result};
 use async_trait::async_trait;
-use std::{fmt::Debug, future::Future, pin::Pin, sync::Arc};
+use std::{any::type_name, fmt::Debug, future::Future, ops::Deref, pin::Pin, sync::Arc};
 
 /// Shared middleware object.
 pub type SharedMiddleware = Arc<dyn Middleware>;
@@ -32,6 +32,10 @@ pub type BoxMiddleware = Box<dyn Middleware>;
 pub trait Middleware: Send + Sync {
     /// Handle this request and return a response.Call `next` method of `Next` to handle remain middleware chain.
     async fn call_middleware(&self, request: &mut Request, next: Next<'_>) -> Result<Response>;
+    /// Get the name of the middleware, which will default to the type name of this middleware.
+    fn name(&self) -> &'static str {
+        type_name::<Self>()
+    }
 }
 
 /// Represents the remaining part of the request handling chain.
@@ -80,8 +84,10 @@ macro_rules! impl_middleware {
 
                     Self: 'async_trait
                 {
-                    use std::ops::Deref;
                     self.deref().call_middleware(request,next)
+                }
+                fn name(&self) -> &'static str{
+                    self.deref().name()
                 }
             }
         )*
@@ -94,5 +100,11 @@ impl_middleware![SharedMiddleware, BoxMiddleware];
 impl Middleware for () {
     async fn call_middleware(&self, _request: &mut Request, _next: Next<'_>) -> Result<Response> {
         Ok(Response::empty())
+    }
+}
+
+impl Debug for dyn Middleware {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
     }
 }
