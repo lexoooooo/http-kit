@@ -25,9 +25,11 @@ mod body;
 pub use body::Body;
 pub use body::Error as BodyError;
 
-pub mod middleware;
-#[doc(inline)]
+mod middleware;
 pub use middleware::Middleware;
+
+mod endpoint;
+pub use endpoint::Endpoint;
 
 mod hook;
 pub use hook::Hook;

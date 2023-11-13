@@ -17,7 +17,7 @@
 //! }
 //! ```
 
-use crate::{Request, Response, Result};
+use crate::{Endpoint, Request, Response, Result};
 use async_trait::async_trait;
 use std::{fmt::Debug, future::Future, pin::Pin, sync::Arc};
 
@@ -35,6 +35,7 @@ pub trait Middleware: Send + Sync {
 /// Represents the remaining part of the request handling chain.
 pub struct Next<'a> {
     remain: &'a [SharedMiddleware],
+    endpoint: &'a dyn Endpoint,
 }
 
 impl Debug for Next<'_> {
@@ -45,23 +46,19 @@ impl Debug for Next<'_> {
 
 impl<'a> Next<'a> {
     /// Create a new `Next` instance ( normally having a complete handling chain).
-    pub fn new(remain: &'a [SharedMiddleware]) -> Self {
-        Self { remain }
+    pub fn new(remain: &'a [SharedMiddleware], endpoint: &'a dyn Endpoint) -> Self {
+        Self { remain, endpoint }
     }
 
     /// Execute the remain part of the handling chain.
     pub async fn run(self, request: &mut Request) -> Result<Response> {
-        self.remain.call_middleware(request, Next::new(&[])).await
-    }
-}
-
-#[async_trait]
-impl Middleware for &[SharedMiddleware] {
-    async fn call_middleware(&self, request: &mut Request, _next: Next<'_>) -> Result<Response> {
-        let (middleware, remain) = self
-            .split_first()
-            .expect("No remaining middleware, seem that this calling comes from handler.");
-        middleware.call_middleware(request, Next::new(remain)).await
+        if let Some((first, remain)) = self.remain.split_first() {
+            first
+                .call_middleware(request, Next::new(remain, self.endpoint))
+                .await
+        } else {
+            self.endpoint.call_endpoint(request).await
+        }
     }
 }
 
