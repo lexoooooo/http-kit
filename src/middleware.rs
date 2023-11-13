@@ -21,8 +21,10 @@ use crate::{Endpoint, Request, Response, Result};
 use async_trait::async_trait;
 use std::{fmt::Debug, future::Future, pin::Pin, sync::Arc};
 
-type SharedMiddleware = Arc<dyn Middleware>;
-type BoxMiddleware = Box<dyn Middleware>;
+/// Shared middleware object.
+pub type SharedMiddleware = Arc<dyn Middleware>;
+/// Boxed middleware object.
+pub type BoxMiddleware = Box<dyn Middleware>;
 
 /// Middleware allows reading and modifying requests or responses during the request handling process.
 /// It is often used to implement functionalities such as timeouts, compression, etc.
