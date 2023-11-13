@@ -19,76 +19,81 @@
 
 use crate::{Request, Response, Result};
 use async_trait::async_trait;
-use std::{future::Future, pin::Pin};
+use std::{fmt::Debug, future::Future, pin::Pin, sync::Arc};
 
-// Recursive expansion of async_trait macro
-// =========================================
-
-impl<T: Middleware> Middleware for &T {
-    fn call_middleware<'life0, 'life1, 'async_trait>(
-        &'life0 self,
-        request: &'life1 mut Request,
-        next: Next<impl 'async_trait + Middleware>,
-    ) -> Pin<Box<dyn Future<Output = Result<Response>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        'life1: 'async_trait,
-        Self: 'async_trait,
-    {
-        (*self).call_middleware(request, next)
-    }
-}
-
-impl<T1: Middleware, T2: Middleware> Middleware for (T1, T2) {
-    fn call_middleware<'life0, 'life1, 'async_trait>(
-        &'life0 self,
-        request: &'life1 mut Request,
-        _next: Next<impl 'async_trait + Middleware>,
-    ) -> Pin<Box<dyn Future<Output = Result<Response>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        'life1: 'async_trait,
-        Self: 'async_trait,
-    {
-        self.0.call_middleware(request, Next::new(&self.1))
-    }
-}
+type SharedMiddleware = Arc<dyn Middleware>;
+type BoxMiddleware = Box<dyn Middleware>;
 
 /// Middleware allows reading and modifying requests or responses during the request handling process.
 /// It is often used to implement functionalities such as timeouts, compression, etc.
 #[async_trait]
 pub trait Middleware: Send + Sync {
     /// Handle this request and return a response.Call `next` method of `Next` to handle remain middleware chain.
-    async fn call_middleware(
-        &self,
-        request: &mut Request,
-        next: Next<impl Middleware>,
-    ) -> Result<Response>;
+    async fn call_middleware(&self, request: &mut Request, next: Next<'_>) -> Result<Response>;
 }
 
 /// Represents the remaining part of the request handling chain.
-#[derive(Debug)]
-pub struct Next<T>(T);
+pub struct Next<'a> {
+    remain: &'a [SharedMiddleware],
+}
 
-impl<T: Middleware> Next<T> {
+impl Debug for Next<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Next").finish()
+    }
+}
+
+impl<'a> Next<'a> {
     /// Create a new `Next` instance ( normally having a complete handling chain).
-    pub fn new(middlewares: T) -> Self {
-        Self(middlewares)
+    pub fn new(remain: &'a [SharedMiddleware]) -> Self {
+        Self { remain }
     }
 
     /// Execute the remain part of the handling chain.
-    pub async fn run(&self, request: &mut Request) -> Result<Response> {
-        self.0.call_middleware(request, Next::new(())).await
+    pub async fn run(self, request: &mut Request) -> Result<Response> {
+        self.remain.call_middleware(request, Next::new(&[])).await
     }
 }
 
 #[async_trait]
+impl Middleware for &[SharedMiddleware] {
+    async fn call_middleware(&self, request: &mut Request, _next: Next<'_>) -> Result<Response> {
+        let (middleware, remain) = self
+            .split_first()
+            .expect("No remaining middleware, seem that this calling comes from handler.");
+        middleware.call_middleware(request, Next::new(remain)).await
+    }
+}
+
+macro_rules! impl_middleware {
+    ($($ty:ty),*) => {
+        $(
+            impl Middleware for $ty {
+                fn call_middleware<'life0, 'life1, 'life2, 'async_trait>(
+                    &'life0 self,
+                    request: &'life1 mut Request,
+                    next: Next<'life2>,
+                ) -> Pin<Box<dyn Future<Output = crate::Result<Response>>+Send+ 'async_trait>,>
+                where
+                    'life0: 'async_trait,
+                    'life1: 'async_trait,
+                    'life2: 'async_trait,
+
+                    Self: 'async_trait
+                {
+                    use std::ops::Deref;
+                    self.deref().call_middleware(request,next)
+                }
+            }
+        )*
+    };
+}
+
+impl_middleware![SharedMiddleware, BoxMiddleware];
+
+#[async_trait]
 impl Middleware for () {
-    async fn call_middleware(
-        &self,
-        _request: &mut Request,
-        _next: Next<impl Middleware>,
-    ) -> Result<Response> {
+    async fn call_middleware(&self, _request: &mut Request, _next: Next<'_>) -> Result<Response> {
         Ok(Response::empty())
     }
 }
