@@ -189,7 +189,7 @@ impl Response {
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         );
-        self.replace_body(serde_json::to_vec(value)?);
+        self.replace_body(Body::from_json(value)?);
         Ok(self)
     }
 
@@ -206,7 +206,7 @@ impl Response {
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/x-www-form-urlencoded"),
         );
-        self.replace_body(serde_urlencoded::to_string(value)?);
+        self.replace_body(Body::from_form(value)?);
         Ok(self)
     }
 
@@ -222,21 +222,25 @@ impl Response {
 
     /// Prepare data in the inner representation,then try to read the body as JSON.
     /// This method allows you to deserialize data with zero copy.
+    /// Tip: This method will fail if `content-type` header is mismatched.
     #[cfg(feature = "json")]
-    pub async fn into_json<'a, T>(&'a mut self) -> Result<T, BodyError>
+    pub async fn into_json<'a, T>(&'a mut self) -> Result<T, crate::Error>
     where
         T: serde::Deserialize<'a>,
     {
+        assert_content_type!("application/json", self.headers());
         Ok(serde_json::from_slice(self.body.as_bytes().await?)?)
     }
 
     /// Prepare data in the inner representation,then try to read the body as a form.
     /// This method allows you to deserialize data with zero copy.
+    /// Tip: This method will fail if `content-type` header is mismatched.
     #[cfg(feature = "form")]
-    pub async fn into_form<'a, T>(&'a mut self) -> Result<T, BodyError>
+    pub async fn into_form<'a, T>(&'a mut self) -> Result<T, crate::Error>
     where
         T: serde::Deserialize<'a>,
     {
+        assert_content_type!("application/x-www-form-urlencoded", self.headers());
         Ok(serde_urlencoded::from_bytes(self.body.as_bytes().await?)?)
     }
 

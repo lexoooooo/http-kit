@@ -115,6 +115,18 @@ impl Body {
         }
     }
 
+    /// Create a body by serializing a object into JSON.
+    #[cfg(feature = "json")]
+    pub fn from_json<T: serde::Serialize>(value: T) -> Result<Self, serde_json::Error> {
+        Ok(Self::from_bytes(serde_json::to_string(&value)?))
+    }
+
+    /// Create a body by serializing a object into form.
+    #[cfg(feature = "form")]
+    pub fn from_form<T: serde::Serialize>(value: T) -> Result<Self, serde_urlencoded::ser::Error> {
+        Ok(Self::from_bytes(serde_urlencoded::to_string(value)?))
+    }
+
     /// Try to get the length of the body.This method is primarily used in optimizations, but it is only an estimation,having no warranty of any kind.
     pub const fn len(&self) -> Option<usize> {
         if let BodyInner::Once(bytes) = &self.inner {
@@ -182,6 +194,30 @@ impl Body {
             BodyInner::Once(ref bytes) => Ok(bytes),
             _ => unreachable!(),
         }
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as JSON.
+    /// This method allows you to deserialize data with zero copy.
+    /// # Warning
+    /// This method wouldn't check MIME of this body, if you expect to reject mismatched MIME, use `Request::into_json` or `Response::into_json` instead.
+    #[cfg(feature = "json")]
+    pub async fn into_json<'a, T>(&'a mut self) -> Result<T, Error>
+    where
+        T: serde::Deserialize<'a>,
+    {
+        Ok(serde_json::from_slice(self.as_bytes().await?)?)
+    }
+
+    /// Prepare data in the inner representation,then try to read the body as a form.
+    /// This method allows you to deserialize data with zero copy.
+    /// # Warning
+    /// This method wouldn't check MIME of this body, if you expect to reject mismatched MIME, use `Request::into_form` or `Response::into_form` instead.
+    #[cfg(feature = "form")]
+    pub async fn into_form<'a, T>(&'a mut self) -> Result<T, Error>
+    where
+        T: serde::Deserialize<'a>,
+    {
+        Ok(serde_urlencoded::from_bytes(self.as_bytes().await?)?)
     }
 
     /// Replace the value of the body and return the old body.
