@@ -196,6 +196,12 @@ impl Body {
         }
     }
 
+    /// Prepare a chunk of bytes in the inner representation, then return a string slice.
+    pub async fn as_str(&mut self) -> Result<&str, Error> {
+        let data = self.as_bytes().await?;
+        Ok(std::str::from_utf8(data)?)
+    }
+
     /// Prepare data in the inner representation,then try to read the body as JSON.
     /// This method allows you to deserialize data with zero copy.
     /// # Warning
