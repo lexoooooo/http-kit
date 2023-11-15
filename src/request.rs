@@ -272,9 +272,12 @@ impl Request {
     where
         T: serde::Deserialize<'a>,
     {
+        use crate::ResultExt;
+
         assert_content_type!("application/json", self.headers());
 
-        Ok(serde_json::from_slice(self.body.as_bytes().await?)?)
+        Ok(serde_json::from_slice(self.body.as_bytes().await?)
+            .status(crate::StatusCode::BAD_REQUEST)?)
     }
 
     /// Prepare data in the inner representation,then try to read the body as a form.
@@ -285,9 +288,12 @@ impl Request {
     where
         T: serde::Deserialize<'a>,
     {
+        use crate::ResultExt;
+
         assert_content_type!("application/x-www-form-urlencoded", self.headers());
 
-        Ok(serde_urlencoded::from_bytes(self.body.as_bytes().await?)?)
+        Ok(serde_urlencoded::from_bytes(self.body.as_bytes().await?)
+            .status(crate::StatusCode::BAD_REQUEST)?)
     }
     /// Set the MIME.
     #[cfg(feature = "mime")]

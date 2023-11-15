@@ -32,7 +32,7 @@ version = "0.3.17"
 optional = true
 
 [features]
-default = []
+default = ["json","form"]
 mime = ["dep:mime"]
 http_body = ["dep:http-body"]
 json = ["dep:serde","dep:serde_json"]

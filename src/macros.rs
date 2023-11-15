@@ -36,7 +36,7 @@ macro_rules! assert_content_type {
         if content_type != $mime.as_bytes() {
             return Err(crate::Error::new(
                 ContentTypeMismatched::new(),
-                crate::StatusCode::BAD_REQUEST,
+                crate::StatusCode::UNSUPPORTED_MEDIA_TYPE,
             ));
         }
     };
