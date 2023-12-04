@@ -22,6 +22,7 @@ mod error;
 pub use error::{Error, Result, ResultExt};
 
 mod body;
+#[cfg(feature = "fs")]
 pub(crate) mod mime_guess;
 pub use body::Body;
 pub use body::Error as BodyError;
