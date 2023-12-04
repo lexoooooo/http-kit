@@ -58,9 +58,8 @@ impl<'a> Next<'a> {
 
     /// Execute the remain part of the handling chain.
     pub async fn run(self, request: &mut Request) -> Result<Response> {
-        if let Some((first, remain)) = self.remain.split_first() {
-            first
-                .call_middleware(request, Next::new(remain, self.endpoint))
+        if let Some((last, remain)) = self.remain.split_last() {
+            last.call_middleware(request, Next::new(remain, self.endpoint))
                 .await
         } else {
             self.endpoint.call_endpoint(request).await
