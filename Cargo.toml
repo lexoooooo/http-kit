@@ -31,9 +31,14 @@ optional = true
 version = "0.3.17"
 optional = true
 
+[dependencies.async-fs]
+version = "2.1.0"
+optional = true
+
 [features]
-default = ["json","form"]
+default = ["json","form","fs"]
 mime = ["dep:mime"]
 http_body = ["dep:http-body"]
 json = ["dep:serde","dep:serde_json"]
 form = ["dep:serde","dep:serde_urlencoded"]
+fs = ["dep:async-fs"]

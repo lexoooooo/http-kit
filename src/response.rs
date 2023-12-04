@@ -193,6 +193,20 @@ impl Response {
         Ok(self)
     }
 
+    /// Set the body from a file.
+    /// This method will try to guess MIME by the extension of file.
+    #[cfg(feature = "fs")]
+    pub async fn file(mut self, path: impl AsRef<std::path::Path>) -> Result<Self, std::io::Error> {
+        use std::os::unix::ffi::OsStrExt;
+
+        let path = path.as_ref();
+        let extension = path.extension().unwrap_or_default().as_bytes();
+        let mime = crate::mime_guess::guess(extension).unwrap_or("application/octet-stream");
+        self.replace_body(Body::from_file(path).await?);
+        self.insert_header(http::header::CONTENT_TYPE, HeaderValue::from_static(mime));
+        Ok(self)
+    }
+
     /// Set the body from a form.
     /// This method will set `Content-type` header automatically.
     #[cfg(feature = "form")]
@@ -231,8 +245,7 @@ impl Response {
         use crate::ResultExt;
 
         assert_content_type!("application/json", self.headers());
-        Ok(serde_json::from_slice(self.body.as_bytes().await?)
-            .status(crate::StatusCode::BAD_REQUEST)?)
+        serde_json::from_slice(self.body.as_bytes().await?).status(crate::StatusCode::BAD_REQUEST)
     }
 
     /// Prepare data in the inner representation,then try to read the body as a form.
@@ -246,8 +259,8 @@ impl Response {
         use crate::ResultExt;
 
         assert_content_type!("application/x-www-form-urlencoded", self.headers());
-        Ok(serde_urlencoded::from_bytes(self.body.as_bytes().await?)
-            .status(crate::StatusCode::BAD_REQUEST)?)
+        serde_urlencoded::from_bytes(self.body.as_bytes().await?)
+            .status(crate::StatusCode::BAD_REQUEST)
     }
 
     /// Set the MIME.

@@ -115,6 +115,17 @@ impl Body {
         }
     }
 
+    /// Create a body from a file.
+    #[cfg(feature = "fs")]
+    pub async fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, std::io::Error> {
+        let file = async_fs::File::open(path).await?;
+        let len = file.metadata().await?.len() as usize;
+        Ok(Self::from_reader(
+            futures_lite::io::BufReader::new(file),
+            len,
+        ))
+    }
+
     /// Create a body by serializing a object into JSON.
     #[cfg(feature = "json")]
     pub fn from_json<T: serde::Serialize>(value: T) -> Result<Self, serde_json::Error> {
@@ -131,6 +142,19 @@ impl Body {
     pub const fn len(&self) -> Option<usize> {
         if let BodyInner::Once(bytes) = &self.inner {
             Some(bytes.len())
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if `Body` has a length of zero bytes.
+    pub const fn is_empty(&self) -> Option<bool> {
+        if let Some(len) = self.len() {
+            if len == 0 {
+                Some(true)
+            } else {
+                Some(false)
+            }
         } else {
             None
         }
