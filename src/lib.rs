@@ -35,6 +35,8 @@ pub use endpoint::Endpoint;
 
 mod hook;
 pub use hook::Hook;
+mod app;
+pub use app::App;
 
 mod request;
 pub use request::Request;
