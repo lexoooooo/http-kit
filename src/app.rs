@@ -6,6 +6,7 @@ use crate::{
 };
 
 /// An App containing endpoint and middlewares.
+#[derive(Default)]
 pub struct App<E: Endpoint> {
     endpoint: E,
     middlewares: Box<[SharedMiddleware]>,
